@@ -184,6 +184,11 @@ CONFIG['ConnectionString SourceFilePath'] = {
     'sourcefilepath':
     'C:\\Users\\320014135\\OneDrive - Philips\\SW CoE\\2019\\dotCraft\\SP To OneDrive\\'
         }
+CONFIG['ConnectionString NewFilePath'] = {
+    'sourcefilepath':
+        'C:\\Users\\320014135\\OneDrive - Philips\\SW CoE\\2019\\dotCraft\\\
+AssessmentFileGeneratorAutomation\\Output\\'
+}
 CONFIG['ParentAttribute Name'] = {'ParentAttributeCQ': ['Code Quality Hygiene'],
                                   'ParentAttributeTA': ['Test Automation'],
                                   'ParentAttributeCICD': ['Continuous Integration']}

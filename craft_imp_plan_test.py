@@ -107,9 +107,9 @@ def check_sheet_protection(file_path, plan, sheet):
 
 #Preprocessing Preparation Phase Starts
 CONFIG = configparser.ConfigParser()
-CONFIG.read('ExcelComparatorConfigFile.ini')
+CONFIG.read('ImpPlanReaderConfig.ini')
 
-IMPPLANOLDFILEPATH = CONFIG['ConnectionString OldFilePath']['sourcefilepath']
+IMPPLANOLDFILEPATH = CONFIG['ConnectionString SourceFilePath']['sourcefilepath']
 IMPPLANNEWFILEPATH = CONFIG['ConnectionString NewFilePath']['sourcefilepath']
 
 ALLOUTPUTFILES = list(filter(lambda x: x.endswith('.xlsx'), os.listdir(IMPPLANNEWFILEPATH)))
