@@ -3,5 +3,3 @@ numpy
 pandas
 
 pylint==1.9.2
-
-pywin32
