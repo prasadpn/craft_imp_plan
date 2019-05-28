@@ -4,4 +4,4 @@ pandas
 
 pylint==1.9.2
 
-pywin32==224
+pywin32>=223
