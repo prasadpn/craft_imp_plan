@@ -8,6 +8,7 @@ import os
 import configparser
 import pandas as pd
 import numpy as np
+from craft_imp_plan_migration_related_changes import migration_related_changes
 #Import statements ends
 
 #Function declaration Phase Starts
@@ -74,28 +75,11 @@ for configSheetReaderItem in CONFIGSHEETREADER:
         df = df[df[CONFIG[configSheetReaderItem]['nullCheck']].notnull()]
         #Section to be removed once the migration of the template is done
         if configSheetReaderItem in ('Readsheet ProjectList2019', 'Readsheet ProjectList2020'):
-            df = df[~df[CONFIG[configSheetReaderItem]['nullCheck']].str.contains(
-                '<Project', na=False
-                )]
-            df = df[~df[CONFIG[configSheetReaderItem]['RankCheck']].apply(
-                lambda x: isinstance(x, (int, np.int64, float, np.float64)))]
-            df[CONFIG[configSheetReaderItem]['RankCheck']][
-                df[CONFIG[configSheetReaderItem]['nullCheck']] == "Other"
-                ] = "AAAA"
-            df = df.sort_values(
-                [
-                    CONFIG[configSheetReaderItem]['RankCheck'],
-                    CONFIG[configSheetReaderItem]['nullCheck']
-                    ],
-                ascending=[True, True]
+            df = migration_related_changes(
+                df,
+                CONFIG[configSheetReaderItem]['nullCheck'],
+                CONFIG[configSheetReaderItem]['RankCheck']
                 )
-            df['Rank'] = (
-                df[CONFIG[configSheetReaderItem]['RankCheck']]+
-                df[CONFIG[configSheetReaderItem]['nullCheck']]
-                ).rank()
-            df[CONFIG[configSheetReaderItem]['RankCheck']] = (
-                df[CONFIG[configSheetReaderItem]['RankCheck']]
-                ).str.replace("AAAA", "None")
         #Section to be removed once the migration of the template is done
         df['Source.Name'] = impPlanFileReaderItem
         df_appended.append(df)

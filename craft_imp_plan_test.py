@@ -8,6 +8,7 @@ import configparser
 import pandas as pd
 import numpy as np
 import win32com.client as win32
+from craft_imp_plan_migration_related_changes import migration_related_changes
 #Import statements ends
 
 #Function declaration Phase Starts
@@ -107,9 +108,9 @@ def check_sheet_protection(file_path, plan, sheet):
 
 #Preprocessing Preparation Phase Starts
 CONFIG = configparser.ConfigParser()
-CONFIG.read('ExcelComparatorConfigFile.ini')
+CONFIG.read('ImpPlanReaderConfig.ini')
 
-IMPPLANOLDFILEPATH = CONFIG['ConnectionString OldFilePath']['sourcefilepath']
+IMPPLANOLDFILEPATH = CONFIG['ConnectionString SourceFilePath']['sourcefilepath']
 IMPPLANNEWFILEPATH = CONFIG['ConnectionString NewFilePath']['sourcefilepath']
 
 ALLOUTPUTFILES = list(filter(lambda x: x.endswith('.xlsx'), os.listdir(IMPPLANNEWFILEPATH)))
@@ -152,23 +153,11 @@ for configSheetReaderItem in CONFIGSHEETREADER:
     dfOldData = dfOldData[dfOldData[CONFIG[configSheetReaderItem]['nullCheck']].notnull()]
     #Section to be removed post migration
     if configSheetReaderItem in ('Readsheet ProjectList2019', 'Readsheet ProjectList2020'):
-        dfOldData = dfOldData[~dfOldData[CONFIG[configSheetReaderItem]['nullCheck']].str.contains(
-            '<Project', na=False)]
-        dfOldData = dfOldData[~dfOldData[CONFIG[configSheetReaderItem]['RankCheck']].apply(
-            lambda x: isinstance(x, (int, np.int64, float, np.float64)))]
-        dfOldData[CONFIG[configSheetReaderItem]['RankCheck']][
-            dfOldData[CONFIG[configSheetReaderItem]['nullCheck']] == "Other"
-            ] = "AAAA"
-        dfOldData = dfOldData.sort_values(
-            [
-                CONFIG[configSheetReaderItem]['RankCheck'],
-                CONFIG[configSheetReaderItem]['nullCheck']
-                ],
-            ascending=[True, True]
+        dfOldData = migration_related_changes(
+            dfOldData, CONFIG[configSheetReaderItem]['nullCheck'],
+            CONFIG[configSheetReaderItem]['RankCheck']
             )
-        dfOldData[CONFIG[configSheetReaderItem]['RankCheck']] = (
-            dfOldData[CONFIG[configSheetReaderItem]['RankCheck']]
-            ).str.replace("AAAA", "None")
+        dfOldData = dfOldData[dfOldData.columns[:-1]]
         dfOldData = dfOldData.reset_index(drop=True)
     #Section to be removed post migration
     DFNEWDATA = pd.DataFrame(newData)
