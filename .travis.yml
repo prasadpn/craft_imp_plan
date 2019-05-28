@@ -3,6 +3,6 @@ python:
     - "3.6"
 install:
     - pip install -r requirements.txt
-    - pip install https://github.com/zakird/pyad/archive/master.zip
+    - pip install pywin32
 script:
     - pylint *.py
