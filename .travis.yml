@@ -1,9 +1,13 @@
-os: linux
-dist: trusty
-language: python
-python:
-    - "3.7.2"
+os: windows
+language: sh
+python: "3.7"
+before_install:
+  - choco install python3
+  - export PATH="/c/Python37:/c/Python37/Scripts:$PATH"
+  - python -m pip install --upgrade pip wheel
 install:
-    - pip install pylint
+  - pip install pywin32
+  - pip install -r requirements.txt
 script:
-    - pylint *.py
+  - echo "Hello World!"
+  - pylint *.py
