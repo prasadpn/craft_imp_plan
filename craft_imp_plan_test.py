@@ -92,7 +92,7 @@ def check_sheet_protection(file_path, plan, sheet):
             },
             index=['FIRST']
         )
-    except:
+    except: # pylint: disable=W0702
         return pd.DataFrame(
             {
                 'plan': plan, 'sheet': sheet,
