@@ -20,23 +20,23 @@ def config_string_converter(config_string_input):
     config_string_output = config_string_output.split(",")
     return config_string_output
 
-def filter_out_column_based_on_values(df_number, column_name, filter_value, filtercriteria):
+def filter_out_column_based_on_values(df_name, column_name, filter_value, filtercriteria):
     """
-    Filters value based on the the criteria provided
+    Filters value on the the criteria
     """
     if filtercriteria == 'containsstr':
-        filtered_df = DFS[df_number][~DFS[df_number][column_name].str.contains(
+        filtered_df = DFS[df_name][~DFS[df_name][column_name].str.contains(
             filter_value, na=False
             )]
     elif filtercriteria == 'intdatatype':
-        filtered_df = DFS[df_number][~DFS[df_number][column_name].apply(
+        filtered_df = DFS[df_name][~DFS[df_name][column_name].apply(
             lambda x: isinstance(x, (int, np.int64, float, np.float64)))]
     elif filtercriteria == 'isin':
-        filtered_df = DFS[df_number][DFS[df_number][column_name].isin(
+        filtered_df = DFS[df_name][DFS[df_name][column_name].isin(
             filter_value
             )]
     else:
-        filtered_df = DFS[df_number]
+        filtered_df = DFS[df_name]
     return filtered_df
 
 #Function declaration Phase Ends
@@ -47,8 +47,11 @@ CONFIG.read('ImpPlanReaderConfig.ini')
 IMPPLANSOURCEFILEPATH = CONFIG['ConnectionString SourceFilePath']['sourcefilepath']
 DFNAMES = CONFIG['DF Names']['DFNames']
 DFNAMES = DFNAMES.split(",")
-DFS = DFNAMES
-DFS_TOPRINT = []
+CENTRALDATAOUTPUTSHEETNAMES = config_string_converter(
+    CONFIG['Write Output CentralData']['SheetName']
+    )
+DFS = {}
+DFS_TOPRINT = {}
 DFS_TOEXCEPTION = DFNAMES
 ALL_XLSM_FILES = list(filter(lambda x: x.endswith('.xlsm'), os.listdir(IMPPLANSOURCEFILEPATH)))
 CONFIGSHEETREADER = list(filter(lambda x: x.startswith('Readsheet'), CONFIG.sections()))
@@ -84,157 +87,162 @@ for configSheetReaderItem in CONFIGSHEETREADER:
         df['Source.Name'] = impPlanFileReaderItem
         df_appended.append(df)
     df_appended = pd.concat(df_appended)
-    DFS[int(CONFIG[configSheetReaderItem]['DFNum'])] = df_appended
+    DFS[DFNAMES[int(CONFIG[configSheetReaderItem]['DFNum'])]] = df_appended
     del df
     del df_appended
 #Data Reading Phase Ends
 
 #Data Manipulation Phase Starts
 #DFS specific data manipulation
-DFS[0] = DFS[0].pivot(
+DFS['Cover'] = DFS['Cover'].pivot(
     index='Source.Name', columns='Org Structure', values='Name'
     )
 
-DFS[0]['Business Group'] = (
-    (DFS[0]['Business Group'].str.upper()).str.rstrip()
+DFS['Cover']['Business Group'] = (
+    (DFS['Cover']['Business Group'].str.upper()).str.rstrip()
     ).str.lstrip()
-DFS[0]['Business Unit'] = (
-    (DFS[0]['Business Unit'].str.upper()).str.rstrip()
+DFS['Cover']['Business Unit'] = (
+    (DFS['Cover']['Business Unit'].str.upper()).str.rstrip()
     ).str.lstrip()
 
-DFS[0]['BGBUID'] = DFS[0]['Business Group'] + " - " + DFS[0]['Business Unit']
+DFS['Cover']['BGBUID'] = DFS['Cover']['Business Group'] + " - " + DFS['Cover']['Business Unit']
 
-DFS[3] = filter_out_column_based_on_values(
-    3, 'Project Name/Team Name', '<Project', 'containsstr'
+DFS['ProjectList2019'] = filter_out_column_based_on_values(
+    'ProjectList2019', 'Project Name/Team Name', '<Project', 'containsstr'
     )
-DFS[4] = filter_out_column_based_on_values(
-    4, 'Project Name/Team Name.1', '<Project', 'containsstr'
+DFS['ProjectList2020'] = filter_out_column_based_on_values(
+    'ProjectList2020', 'Project Name/Team Name.1', '<Project', 'containsstr'
     )
-DFS[3] = filter_out_column_based_on_values(
-    3, 'Profile', None, 'intdatatype'
+DFS['ProjectList2019'] = filter_out_column_based_on_values(
+    'ProjectList2019', 'Profile', None, 'intdatatype'
     )
-DFS[4] = filter_out_column_based_on_values(
-    4, 'Profile.1', None, 'intdatatype'
+DFS['ProjectList2020'] = filter_out_column_based_on_values(
+    'ProjectList2020', 'Profile.1', None, 'intdatatype'
     )
 
 #Actions - addition of ParentAttribute & consolidating the 3 DFS into 1
 PARENTATTRIBUTECQ = CONFIG['ParentAttribute Name']['ParentAttributeCQ']
 PARENTATTRIBUTETA = CONFIG['ParentAttribute Name']['ParentAttributeTA']
 PARENTATTRIBUTECICD = CONFIG['ParentAttribute Name']['ParentAttributeCICD']
-DFS[5]['ParentAttribute'] = PARENTATTRIBUTECQ[2:-2]
-DFS[6]['ParentAttribute'] = PARENTATTRIBUTETA[2:-2]
-DFS[7]['ParentAttribute'] = PARENTATTRIBUTECICD[2:-2]
+DFS['CodeQualityHygiene']['ParentAttribute'] = PARENTATTRIBUTECQ[2:-2]
+DFS['TestAutomation']['ParentAttribute'] = PARENTATTRIBUTETA[2:-2]
+DFS['ContinuousIntegration']['ParentAttribute'] = PARENTATTRIBUTECICD[2:-2]
 
-FRAMES = [DFS[5], DFS[6], DFS[7]]
-DFS[5] = pd.concat(FRAMES)
+FRAMES = [DFS['CodeQualityHygiene'], DFS['TestAutomation'], DFS['ContinuousIntegration']]
+DFS['Actions2019'] = DFS.pop('CodeQualityHygiene')
+DFS['Actions2019'] = pd.concat(FRAMES)
 
 #Deletes the Continuous Integration DataFrame
-del DFS[7]
+del DFS['TestAutomation']
 #Deletes the Test Automation DataFrame
-del DFS[6]
+del DFS['ContinuousIntegration']
 
 print('Filtering based on Column values for data FRAMES to be printed starts')
 
 DFS_TOPRINT = DFS
 #configDataChecksItemCounter = 0
 for configDataChecksItem in CONFIGDATACHECKS:
-    DFSNum = int(
+    DFSNam = CENTRALDATAOUTPUTSHEETNAMES[int(
         CONFIG[configDataChecksItem]['DFNumber']
-        )
+        )]
     DFSCol = CONFIG[configDataChecksItem]['Column']
     DFSColVal = config_string_converter(
         CONFIG[configDataChecksItem]['ColVal']
         )
-    DFS_TOPRINT[DFSNum] = filter_out_column_based_on_values(
-        DFSNum, DFSCol, DFSColVal, 'isin'
+    DFS_TOPRINT[DFSNam] = filter_out_column_based_on_values(
+        DFSNam, DFSCol, DFSColVal, 'isin'
         )
 
 MERGEDFCOUNTER = len(CONFIGSHEETREADER)
 
 for x in range(MERGEDFCOUNTER-3):
     x = x + 1
-    DFS_TOPRINT[x] = pd.merge(DFS_TOPRINT[x], DFS_TOPRINT[0], on='Source.Name', how='inner')
+    DFS_TOPRINT[CENTRALDATAOUTPUTSHEETNAMES[x]] = pd.merge(
+        DFS_TOPRINT[CENTRALDATAOUTPUTSHEETNAMES[x]],
+        DFS_TOPRINT['Cover'],
+        on='Source.Name', how='inner'
+        )
 
 #To get from config file once all the columns are decided
-DFS_TOPRINT[1]['Joinkey'] = (
-    DFS_TOPRINT[1]['BGBUID'] +
-    DFS_TOPRINT[1]['Attribute']
+DFS_TOPRINT['TargetScore2019']['Joinkey'] = (
+    DFS_TOPRINT['TargetScore2019']['BGBUID'] +
+    DFS_TOPRINT['TargetScore2019']['Attribute']
     )
-DFS_TOPRINT[2]['Joinkey'] = (
-    DFS_TOPRINT[2]['BGBUID'] +
-    DFS_TOPRINT[2]['Attribute.1']
+DFS_TOPRINT['TargetScore2020']['Joinkey'] = (
+    DFS_TOPRINT['TargetScore2020']['BGBUID'] +
+    DFS_TOPRINT['TargetScore2020']['Attribute.1']
     )
-DFS_TOPRINT[3]['Joinkey'] = (
-    DFS_TOPRINT[3]['BGBUID'] +
+DFS_TOPRINT['ProjectList2019']['Joinkey'] = (
+    DFS_TOPRINT['ProjectList2019']['BGBUID'] +
     (
-        (DFS_TOPRINT[3]['Rank']).astype(int)).astype(str)
+        (DFS_TOPRINT['ProjectList2019']['Rank']).astype(int)).astype(str)
     )
-DFS_TOPRINT[4]['Joinkey'] = (
-    DFS_TOPRINT[4]['BGBUID'] +
+DFS_TOPRINT['ProjectList2020']['Joinkey'] = (
+    DFS_TOPRINT['ProjectList2020']['BGBUID'] +
     (
-        (DFS_TOPRINT[4]['Rank']).astype(int)).astype(str)
+        (DFS_TOPRINT['ProjectList2020']['Rank']).astype(int)).astype(str)
     )
-DFS_TOPRINT[5]['Joinkey'] = (
-    DFS_TOPRINT[5]['BGBUID'] +
-    DFS_TOPRINT[5]['ParentAttribute'] +
+DFS_TOPRINT['Actions2019']['Joinkey'] = (
+    DFS_TOPRINT['Actions2019']['BGBUID'] +
+    DFS_TOPRINT['Actions2019']['ParentAttribute'] +
     (
-        (DFS_TOPRINT[5]['Sl No']).astype(int)).astype(str)
+        (DFS_TOPRINT['Actions2019']['Sl No']).astype(int)).astype(str)
     )
-DFS_TOPRINT[6]['Joinkey'] = (
-    DFS_TOPRINT[6]['BGBUID'] +
-    DFS_TOPRINT[6]['Attribute'] + DFS_TOPRINT[6]['Profile']
+DFS_TOPRINT['Rationale']['Joinkey'] = (
+    DFS_TOPRINT['Rationale']['BGBUID'] +
+    DFS_TOPRINT['Rationale']['Attribute'] + DFS_TOPRINT['Rationale']['Profile']
     )
-DFS_TOPRINT[7]['Joinkey'] = (
-    DFS_TOPRINT[7]['BGBUID'] +
-    DFS_TOPRINT[7]['Major Release Defect Density']
+DFS_TOPRINT['DefectDensity']['Joinkey'] = (
+    DFS_TOPRINT['DefectDensity']['BGBUID'] +
+    DFS_TOPRINT['DefectDensity']['Major Release Defect Density']
     )
-DFS_TOPRINT[8]['Joinkey'] = (
-    DFS_TOPRINT[8]['BGBUID'] +
-    DFS_TOPRINT[8]['Code Size']
+DFS_TOPRINT['CodeSize']['Joinkey'] = (
+    DFS_TOPRINT['CodeSize']['BGBUID'] +
+    DFS_TOPRINT['CodeSize']['Code Size']
     )
-DFS_TOPRINT[9]['Joinkey'] = (
-    DFS_TOPRINT[9]['BGBUID'] +
-    DFS_TOPRINT[9]['SAFE/Agile Data']
+DFS_TOPRINT['SafeAgile']['Joinkey'] = (
+    DFS_TOPRINT['SafeAgile']['BGBUID'] +
+    DFS_TOPRINT['SafeAgile']['SAFE/Agile Data']
     )
-DFS_TOPRINT[10]['Joinkey'] = (
-    DFS_TOPRINT[10]['BGBUID'] +
-    DFS_TOPRINT[10]['Tooling Info']
+DFS_TOPRINT['ToolInfo']['Joinkey'] = (
+    DFS_TOPRINT['ToolInfo']['BGBUID'] +
+    DFS_TOPRINT['ToolInfo']['Tooling Info']
     )
-DFS_TOPRINT[11]['Joinkey'] = (
-    DFS_TOPRINT[11]['BGBUID'] +
-    DFS_TOPRINT[11]['Security']
+DFS_TOPRINT['SecurityActions']['Joinkey'] = (
+    DFS_TOPRINT['SecurityActions']['BGBUID'] +
+    DFS_TOPRINT['SecurityActions']['Security']
     )
-DFS_TOPRINT[12]['Joinkey'] = (
-    DFS_TOPRINT[12]['BGBUID'] +
-    DFS_TOPRINT[12]['DevOps']
+DFS_TOPRINT['DevOpsActions']['Joinkey'] = (
+    DFS_TOPRINT['DevOpsActions']['BGBUID'] +
+    DFS_TOPRINT['DevOpsActions']['DevOps']
     )
-DFS_TOPRINT[13]['Joinkey'] = (
-    DFS_TOPRINT[13]['BGBUID'] +
-    DFS_TOPRINT[13]['Tech Debt']
+DFS_TOPRINT['TechDebtActions']['Joinkey'] = (
+    DFS_TOPRINT['TechDebtActions']['BGBUID'] +
+    DFS_TOPRINT['TechDebtActions']['Tech Debt']
     )
-DFS_TOPRINT[14]['Joinkey'] = (
-    DFS_TOPRINT[14]['BGBUID'] +
-    DFS_TOPRINT[14]['Requirements and Backlogs']
+DFS_TOPRINT['ReqBacklogActions']['Joinkey'] = (
+    DFS_TOPRINT['ReqBacklogActions']['BGBUID'] +
+    DFS_TOPRINT['ReqBacklogActions']['Requirements and Backlogs']
     )
-DFS_TOPRINT[15]['Joinkey'] = (
-    DFS_TOPRINT[15]['BGBUID'] +
-    DFS_TOPRINT[15]['Role']
+DFS_TOPRINT['ApprovalTable']['Joinkey'] = (
+    DFS_TOPRINT['ApprovalTable']['BGBUID'] +
+    DFS_TOPRINT['ApprovalTable']['Role']
     )
 
-DFS_TOPRINT[2].rename(
+DFS_TOPRINT['TargetScore2020'].rename(
     columns={'Attribute.1':'Attribute', 'Minimum.1':'Minimum', 'Best.1':'Best'},
     inplace=True
     )
-DFS_TOPRINT[4].rename(
+DFS_TOPRINT['ProjectList2020'].rename(
     columns={'Project Name/Team Name.1':'Project Name/Team Name',
              'FTE/People.1':'FTE/People', 'Profile.1':'Profile'},
     inplace=True
     )
-DFS_TOPRINT[13].rename(
+DFS_TOPRINT['TechDebtActions'].rename(
     columns={'Action.1':'Action', 'Owner.1':'Owner', 'End Date.1':'End Date'},
     inplace=True
     )
-DFS_TOPRINT[14].rename(
+DFS_TOPRINT['ReqBacklogActions'].rename(
     columns={'Action.1':'Action', 'Owner.1':'Owner', 'End Date.1':'End Date'},
     inplace=True
     )
@@ -242,9 +250,6 @@ DFS_TOPRINT[14].rename(
 #Data Manipulation Phase Ends
 
 #Data Output write Phase starts
-CENTRALDATAOUTPUTSHEETNAMES = config_string_converter(
-    CONFIG['Write Output CentralData']['SheetName']
-    )
 
 print('Output writing to excel starts for Central Repo')
 # Create a Pandas Excel writer using XlsxWriter as the engine.
@@ -255,7 +260,10 @@ WRITEFCOUNTER = len(CENTRALDATAOUTPUTSHEETNAMES)
 # Write each dataframe to a different worksheet.
 for y in range(WRITEFCOUNTER):
     #worksheet = workbook.add_worksheet(CENTRALDATAOUTPUTSHEETNAMES[0])
-    DFS_TOPRINT[y].to_excel(WRITER, sheet_name=CENTRALDATAOUTPUTSHEETNAMES[y], index=False)
+    DFS_TOPRINT[CENTRALDATAOUTPUTSHEETNAMES[y]].to_excel(
+        WRITER,
+        sheet_name=CENTRALDATAOUTPUTSHEETNAMES[y], index=False
+        )
 
 # Close the Pandas Excel writer and output the Excel file.
 WRITER.save()
