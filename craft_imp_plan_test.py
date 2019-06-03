@@ -12,6 +12,83 @@ from craft_imp_plan_migration_related_changes import migration_related_changes
 #Import statements ends
 
 #Function declaration Phase Starts
+def compare_improvement_plans(old_plan, new_plan, plan, imp_plan_section):
+    old_val = []
+    new_val = []
+    if old_plan.equals(new_plan):
+        return pd.DataFrame(
+            {
+                'plan': plan, 'section': imp_plan_section,
+                'Result': 'Match', 'from': '', 'to': ''
+                },
+            index=['First']
+            )
+    elif len(old_plan) != len(new_plan):
+        return pd.DataFrame(
+            {
+                'plan': NEWFILENAME, 'section': imp_plan_section,
+                'Result': 'Missmatch row count',
+                'from': str(len(old_plan))+' rows', 'to': str(len(new_plan))+' rows'
+                },
+            index=['First']
+            )
+    elif len(old_plan.columns) != len(new_plan.columns):
+        return pd.DataFrame(
+            {
+                'plan': plan, 'section': imp_plan_section,
+                'Result': 'Missmatch column count',
+                'from': str(len(old_plan.columns))+' columns',
+                'to': str(len(new_plan.columns))+' columns'
+                },
+            index=['First']
+            )
+    elif (old_plan.columns == new_plan.columns).all() and any(old_plan.dtypes != new_plan.dtypes):
+        old_plan_columns = list(old_plan.columns.values)
+        new_plan_columns = list(new_plan.columns.values)
+        old_plan_columns_dtypes = list(old_plan.dtypes)
+        new_plan_columns_dtypes = list(new_plan.dtypes)
+        old_col_dtypes = list(map(list, zip(old_plan_columns, old_plan_columns_dtypes)))
+        new_col_dtypes = list(map(list, zip(new_plan_columns, new_plan_columns_dtypes)))
+        for index, (old, new) in enumerate(zip(old_col_dtypes, new_col_dtypes)):
+            if old != new:
+                old_val.append(old)
+                new_val.append(new)
+        old_val_str = str(old_val)
+        new_val_str = str(new_val)
+        return pd.DataFrame(
+            {
+                'plan': plan, 'section': imp_plan_section,
+                'Result': 'Missmatch data type of same columns',
+                'from': old_val_str, 'to': new_val_str
+                },
+            index=['First']
+            )
+    elif any(old_plan.columns != new_plan.columns):
+        old_plan_columns = list(old_plan.columns.values)
+        new_plan_columns = list(new_plan.columns.values)
+        for index, (old, new) in enumerate(zip(old_plan_columns, new_plan_columns)):
+            if old != new:
+                old_val.append(old)
+                new_val.append(new)
+        old_val_str = str(old_val)
+        new_val_str = str(new_val)
+        return pd.DataFrame(
+            {
+                'plan': plan, 'section': imp_plan_section,
+                'Result': 'Different Columns Names',
+                'from': old_val_str, 'to': new_val_str
+                },
+            index=['First']
+            )
+    else:
+        return pd.DataFrame(
+            {
+                'plan': plan, 'section': imp_plan_section,
+                'Result': 'Miss Match', 'from': '', 'to': ''
+                },
+            index=['First']
+            )
+
 def diff_pd(df1, df2, plan, imp_plan_section):
     """Identify differences between two pandas DataFrames"""
     assert (df1.columns == df2.columns).all(), \
@@ -162,13 +239,14 @@ for configSheetReaderItem in CONFIGSHEETREADER:
     #Section to be removed post migration
     DFNEWDATA = pd.DataFrame(newData)
     DFNEWDATA = DFNEWDATA[DFNEWDATA[CONFIG[configSheetReaderItem]['nullCheck']].notnull()]
-    CompareResult = diff_pd(dfOldData, DFNEWDATA, NEWFILENAME, configSheetReaderItem)
+    CompareResult = compare_improvement_plans(
+        dfOldData, DFNEWDATA, NEWFILENAME, configSheetReaderItem)
     COMPARERESULTAPPENDED = COMPARERESULTAPPENDED.append(
         CompareResult,
         ignore_index=True,
         sort=True
         )
-
+"""
     SheetProtectionResult = check_sheet_protection(
         NEWFILEPATH, NEWFILENAME, CONFIG[configSheetReaderItem]['SheetName']
         )
@@ -177,11 +255,12 @@ for configSheetReaderItem in CONFIGSHEETREADER:
         ignore_index=True,
         sort=True
         )
-
+"""
 COMPARERESULTAPPENDED = COMPARERESULTAPPENDED[['plan', 'section', 'Result', 'from', 'to']]
-SHEETPROTECTIONRESULTAPPENDED = SHEETPROTECTIONRESULTAPPENDED[['plan', 'sheet', 'Result']]
+#SHEETPROTECTIONRESULTAPPENDED = SHEETPROTECTIONRESULTAPPENDED[['plan', 'sheet', 'Result']]
+
 print(COMPARERESULTAPPENDED)
-print(SHEETPROTECTIONRESULTAPPENDED)
+#print(SHEETPROTECTIONRESULTAPPENDED)
 #Data Reading & Testing Phase Ends
 
 #Data Output write Phase starts
