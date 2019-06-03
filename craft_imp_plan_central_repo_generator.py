@@ -20,23 +20,30 @@ def config_string_converter(config_string_input):
     config_string_output = config_string_output.split(",")
     return config_string_output
 
-def filter_out_column_based_on_values(df_name, column_name, filter_value, filtercriteria):
+def filter_out_column_containsstr(df_name, column_name, filter_value):
     """
     Filters value on the the criteria
     """
-    if filtercriteria == 'containsstr':
-        filtered_df = DFS[df_name][~DFS[df_name][column_name].str.contains(
-            filter_value, na=False
-            )]
-    elif filtercriteria == 'intdatatype':
-        filtered_df = DFS[df_name][~DFS[df_name][column_name].apply(
-            lambda x: isinstance(x, (int, np.int64, float, np.float64)))]
-    elif filtercriteria == 'isin':
-        filtered_df = DFS[df_name][DFS[df_name][column_name].isin(
-            filter_value
-            )]
-    else:
-        filtered_df = DFS[df_name]
+    filtered_df = DFS[df_name][~DFS[df_name][column_name].str.contains(
+        filter_value, na=False
+        )]
+    return filtered_df
+
+def filter_out_column_intdata(df_name, column_name, filter_value):
+    """
+    Filters value on the the criteria
+    """
+    filtered_df = DFS[df_name][~DFS[df_name][column_name].apply(
+        lambda x: isinstance(x, (int, np.int64, float, np.float64)))]
+    return filtered_df
+
+def filter_out_column_isin(df_name, column_name, filter_value):
+    """
+    Filters value on the the criteria
+    """
+    filtered_df = DFS[df_name][DFS[df_name][column_name].isin(
+        filter_value
+        )]
     return filtered_df
 
 def create_source_dict(confi_sheet_reader, all_files, imp_plan_source_file_path):
@@ -102,17 +109,17 @@ def frame_specific_manipulation(config_data_checks, central_data_output_sheet_na
         (DFS['Cover']['Business Unit'].str.upper()).str.rstrip()
         ).str.lstrip()
     DFS['Cover']['BGBUID'] = DFS['Cover']['Business Group'] + " - " + DFS['Cover']['Business Unit']
-    DFS['ProjectList2019'] = filter_out_column_based_on_values(
-        'ProjectList2019', 'Project Name/Team Name', '<Project', 'containsstr'
+    DFS['ProjectList2019'] = filter_out_column_containsstr(
+        'ProjectList2019', 'Project Name/Team Name', '<Project'
         )
-    DFS['ProjectList2020'] = filter_out_column_based_on_values(
-        'ProjectList2020', 'Project Name/Team Name.1', '<Project', 'containsstr'
+    DFS['ProjectList2020'] = filter_out_column_containsstr(
+        'ProjectList2020', 'Project Name/Team Name.1', '<Project'
         )
-    DFS['ProjectList2019'] = filter_out_column_based_on_values(
-        'ProjectList2019', 'Profile', None, 'intdatatype'
+    DFS['ProjectList2019'] = filter_out_column_intdata(
+        'ProjectList2019', 'Profile', None
         )
-    DFS['ProjectList2020'] = filter_out_column_based_on_values(
-        'ProjectList2020', 'Profile.1', None, 'intdatatype'
+    DFS['ProjectList2020'] = filter_out_column_intdata(
+        'ProjectList2020', 'Profile.1', None
         )
     #Actions - addition of ParentAttribute & consolidating the 3 DFS into 1
     parent_attribute_cq = CONFIG['ParentAttribute Name']['ParentAttributeCQ']
@@ -143,8 +150,8 @@ def frame_specific_manipulation(config_data_checks, central_data_output_sheet_na
         dfs_col_val = config_string_converter(
             CONFIG[config_data_checks_item]['ColVal']
             )
-        write_output_dict[dfs_name] = filter_out_column_based_on_values(
-            dfs_name, dfs_col, dfs_col_val, 'isin'
+        write_output_dict[dfs_name] = filter_out_column_isin(
+            dfs_name, dfs_col, dfs_col_val
             )
     merged_counter = len(CONFIGSHEETREADER)
     for output_sheet_counter in range(merged_counter-3):
