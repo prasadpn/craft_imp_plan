@@ -29,7 +29,7 @@ def filter_out_column_containsstr(df_name, column_name, filter_value):
         )]
     return filtered_df
 
-def filter_out_column_intdata(df_name, column_name, filter_value):
+def filter_out_column_intdata(df_name, column_name):
     """
     Filters value on the the criteria
     """
@@ -116,10 +116,10 @@ def frame_specific_manipulation(config_data_checks, central_data_output_sheet_na
         'ProjectList2020', 'Project Name/Team Name.1', '<Project'
         )
     DFS['ProjectList2019'] = filter_out_column_intdata(
-        'ProjectList2019', 'Profile', None
+        'ProjectList2019', 'Profile'
         )
     DFS['ProjectList2020'] = filter_out_column_intdata(
-        'ProjectList2020', 'Profile.1', None
+        'ProjectList2020', 'Profile.1'
         )
     #Actions - addition of ParentAttribute & consolidating the 3 DFS into 1
     parent_attribute_cq = CONFIG['ParentAttribute Name']['ParentAttributeCQ']
