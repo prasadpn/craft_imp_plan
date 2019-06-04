@@ -96,71 +96,6 @@ def compare_improvement_plans(old_plan, new_plan, plan, imp_plan_section):
         )
 
 
-def diff_pd(df1, df2, plan, imp_plan_section):
-    """Identify differences between two pandas DataFrames"""
-    assert (df1.columns == df2.columns).all(), \
-        print(
-            "DataFrame column names are different for the section:" +
-            str(imp_plan_section) + " in the file:" + str(plan)
-            )
-    if any(df1.dtypes != df2.dtypes):
-        print(
-            "Data Types are different for the section:" +
-            str(imp_plan_section) + " in the file:" +
-            str(plan) + ", trying to convert"
-            )
-        df2 = df2.astype(df1.dtypes)
-    if df1.equals(df2):
-        return pd.DataFrame(
-            {
-                'plan': plan, 'section': imp_plan_section,
-                'Result': 'Match', 'from': '', 'to': ''
-                },
-            index=['First']
-            )
-    if len(df1.columns) != len(df2.columns):
-        return pd.DataFrame(
-            {
-                'plan': plan, 'section': imp_plan_section,
-                'Result': 'Missmatch column count',
-                'from': str(len(df1.columns))+' rows', 'to': str(len(df2.columns))+' rows'
-                },
-            index=['First']
-            )
-    if len(df1) != len(df2):
-        #df1["identifierOld"] = "Yes"
-        #df2["identifierNew"] = "Yes"
-        #dfMerge = pd.merge(
-        # df1,df2,how="outer",left_on=["Tooling Info"],right_on=["Tooling Info"]
-        # )
-        #dfMerge['MismatchRows'] = (
-        # df1["identifierOld"]).astype(str) + "-" + (df2["identifierNew"]
-        # ).astype(str)
-        #dfMerge = dfMerge[~dfMerge['MismatchRows'].str.contains("Yes-Yes", na=False)]
-        return pd.DataFrame(
-            {
-                'plan': NEWFILENAME, 'section': imp_plan_section,
-                'Result': 'Missmatch row count',
-                'from': str(len(df1))+' rows', 'to': str(len(df2))+' rows'
-                },
-            index=['First']
-            )
-    diff_mask = (df1 != df2) & ~(df1.isnull() & df2.isnull())
-    ne_stacked = diff_mask.stack()
-    changed = ne_stacked[ne_stacked]
-    changed.index.names = ['id', 'col']
-    difference_locations = np.where(diff_mask)
-    changed_from = df1.values[difference_locations]
-    changed_to = df2.values[difference_locations]
-    return pd.DataFrame(
-        {
-            'plan': NEWFILENAME, 'section': imp_plan_section,
-            'Result': 'Missmatch in data',
-            'from': changed_from, 'to': changed_to
-            },
-        index=changed.index
-        )
-
 def check_sheet_protection(file_path, plan, sheet):
     '''Sheet protection check'''
     excel_file = win32.gencache.EnsureDispatch('Excel.Application')
@@ -188,6 +123,52 @@ def check_sheet_protection(file_path, plan, sheet):
         excel_file.DisplayAlerts = False
         work_book.Close(False)
         excel_file.Application.Quit()
+
+def prepare_data_for_test(config_sheet_reader_item, old_path, new_path):
+    """
+    Prepares improvement plan data for test
+    """
+    old_plan_path = old_path
+    new_plan_path = new_path
+    config_sheet_reader_item_key = config_sheet_reader_item
+    old_data = pd.read_excel(
+        old_plan_path, sheet_name=CONFIG[config_sheet_reader_item_key]['SheetName'],
+        skiprows=int(CONFIG[config_sheet_reader_item_key]['skiprows']),
+        nrows=int(CONFIG[config_sheet_reader_item_key]['nrows']),
+        usecols=CONFIG[config_sheet_reader_item_key]['parse_cols']
+        )
+    if config_sheet_reader_item_key in ('Readsheet ProjectList2019', 'Readsheet ProjectList2020'):
+        new_data = pd.read_excel(
+            new_plan_path, sheet_name=CONFIG[config_sheet_reader_item_key]['SheetName'],
+            skiprows=int(CONFIG[config_sheet_reader_item_key]['skiprows'])+4,
+            nrows=int(CONFIG[config_sheet_reader_item_key]['nrows']),
+            usecols=CONFIG[config_sheet_reader_item_key]['parse_cols']
+            )
+    else:
+        new_data = pd.read_excel(
+            new_plan_path, sheet_name=CONFIG[config_sheet_reader_item_key]['SheetName'],
+            skiprows=int(CONFIG[config_sheet_reader_item_key]['skiprows']),
+            nrows=int(CONFIG[config_sheet_reader_item_key]['nrows']),
+            usecols=CONFIG[config_sheet_reader_item_key]['parse_cols']
+            )
+
+    df_old_data = pd.DataFrame(old_data)
+    df_old_data = df_old_data[
+        df_old_data[
+            CONFIG[config_sheet_reader_item_key]['nullCheck']].notnull()]
+    #Section to be removed post migration
+    if config_sheet_reader_item_key in ('Readsheet ProjectList2019', 'Readsheet ProjectList2020'):
+        df_old_data = migration_related_changes(
+            df_old_data, CONFIG[config_sheet_reader_item_key]['nullCheck'],
+            CONFIG[config_sheet_reader_item_key]['RankCheck']
+            )
+        df_old_data = df_old_data[df_old_data.columns[:-1]]
+        df_old_data = df_old_data.reset_index(drop=True)
+    #Section to be removed post migration
+    df_new_data = pd.DataFrame(new_data)
+    df_new_data = df_new_data[
+        df_new_data[CONFIG[config_sheet_reader_item_key]['nullCheck']].notnull()]
+    return df_old_data, df_new_data
 #Function declaration Phase Ends
 
 #Preprocessing Preparation Phase Starts
@@ -212,42 +193,14 @@ SHEETPROTECTIONRESULTAPPENDED = pd.DataFrame()
 
 #Data Reading & Testing Phase Starts
 for configSheetReaderItem in CONFIGSHEETREADER:
-    oldData = pd.read_excel(
-        OLDFILEPATH, sheet_name=CONFIG[configSheetReaderItem]['SheetName'],
-        skiprows=int(CONFIG[configSheetReaderItem]['skiprows']),
-        nrows=int(CONFIG[configSheetReaderItem]['nrows']),
-        usecols=CONFIG[configSheetReaderItem]['parse_cols']
-        )
-    if configSheetReaderItem in ('Readsheet ProjectList2019', 'Readsheet ProjectList2020'):
-        newData = pd.read_excel(
-            NEWFILEPATH, sheet_name=CONFIG[configSheetReaderItem]['SheetName'],
-            skiprows=int(CONFIG[configSheetReaderItem]['skiprows'])+4,
-            nrows=int(CONFIG[configSheetReaderItem]['nrows']),
-            usecols=CONFIG[configSheetReaderItem]['parse_cols']
-            )
-    else:
-        newData = pd.read_excel(
-            NEWFILEPATH, sheet_name=CONFIG[configSheetReaderItem]['SheetName'],
-            skiprows=int(CONFIG[configSheetReaderItem]['skiprows']),
-            nrows=int(CONFIG[configSheetReaderItem]['nrows']),
-            usecols=CONFIG[configSheetReaderItem]['parse_cols']
-            )
 
-    dfOldData = pd.DataFrame(oldData)
-    dfOldData = dfOldData[dfOldData[CONFIG[configSheetReaderItem]['nullCheck']].notnull()]
-    #Section to be removed post migration
-    if configSheetReaderItem in ('Readsheet ProjectList2019', 'Readsheet ProjectList2020'):
-        dfOldData = migration_related_changes(
-            dfOldData, CONFIG[configSheetReaderItem]['nullCheck'],
-            CONFIG[configSheetReaderItem]['RankCheck']
-            )
-        dfOldData = dfOldData[dfOldData.columns[:-1]]
-        dfOldData = dfOldData.reset_index(drop=True)
-    #Section to be removed post migration
-    DFNEWDATA = pd.DataFrame(newData)
-    DFNEWDATA = DFNEWDATA[DFNEWDATA[CONFIG[configSheetReaderItem]['nullCheck']].notnull()]
+    old_imp_plan, new_imp_plan = prepare_data_for_test(
+        configSheetReaderItem,
+        OLDFILEPATH,
+        NEWFILEPATH
+        )
     CompareResult = compare_improvement_plans(
-        dfOldData, DFNEWDATA, NEWFILENAME, configSheetReaderItem)
+        old_imp_plan, new_imp_plan, NEWFILENAME, configSheetReaderItem)
     COMPARERESULTAPPENDED = COMPARERESULTAPPENDED.append(
         CompareResult,
         ignore_index=True,
