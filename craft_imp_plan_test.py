@@ -25,76 +25,76 @@ def identify_column_diff(old_list, new_list):
             print(index)
     return str(old_val), str(new_val)
 
+def make_comparison_dataframe(plan_section, result_message, from_value, to_value, index_value):
+    """
+    Creates output dataframe for comparision result
+    """
+    return pd.DataFrame(
+        {
+            'plan - section': plan_section,
+            'Result': result_message, 'from': from_value, 'to': to_value
+            },
+        index=index_value
+    )
+
+def make_protection_dataframe(plan_sheet, result_message, index_value):
+    """
+    Creates output dataframe for sheet protection result
+    """
+    return pd.DataFrame(
+        {
+            'plan - sheet': plan_sheet,
+            'Result': result_message
+            },
+        index=index_value
+    )
+
 def compare_improvement_plans(old_plan, new_plan, plan, imp_plan_section):
     """
     Compares improvement plans for differences
     """
     if old_plan.equals(new_plan):
-        return pd.DataFrame(
-            {
-                'plan': plan, 'section': imp_plan_section,
-                'Result': 'Match', 'from': '', 'to': ''
-                },
-            index=['First']
-            )
-    if len(old_plan) != len(new_plan):
-        return pd.DataFrame(
-            {
-                'plan': NEWFILENAME, 'section': imp_plan_section,
-                'Result': 'Missmatch row count',
-                'from': str(len(old_plan))+' rows', 'to': str(len(new_plan))+' rows'
-                },
-            index=['First']
-            )
-    if len(old_plan.columns) != len(new_plan.columns):
-        return pd.DataFrame(
-            {
-                'plan': plan, 'section': imp_plan_section,
-                'Result': 'Missmatch column count',
-                'from': str(len(old_plan.columns))+' columns',
-                'to': str(len(new_plan.columns))+' columns'
-                },
-            index=['First']
-            )
-    if (old_plan.columns == new_plan.columns).all() and any(old_plan.dtypes != new_plan.dtypes):
+        result_of_compare = make_comparison_dataframe(
+            plan + ': ' + imp_plan_section, 'Match', '', '', ['First'])
+
+    elif len(old_plan) != len(new_plan):
+        result_of_compare = make_comparison_dataframe(
+            plan + ': ' + imp_plan_section, 'Missmatch row count',
+            str(len(old_plan))+' rows', str(len(new_plan))+' rows', ['First'])
+
+    elif len(old_plan.columns) != len(new_plan.columns):
+        result_of_compare = make_comparison_dataframe(
+            plan + ': ' + imp_plan_section, 'Missmatch column count',
+            str(len(old_plan.columns))+' columns', str(len(new_plan.columns))+' columns',
+            ['First'])
+
+    elif (old_plan.columns == new_plan.columns).all() and any(old_plan.dtypes != new_plan.dtypes):
         old_col_dtypes = list(map(list, zip(list(old_plan.columns.values), list(old_plan.dtypes))))
         new_col_dtypes = list(map(list, zip(list(new_plan.columns.values), list(new_plan.dtypes))))
         old_val_str, new_val_str = identify_column_diff(old_col_dtypes, new_col_dtypes)
-        return pd.DataFrame(
-            {
-                'plan': plan, 'section': imp_plan_section,
-                'Result': 'Missmatch data type of same columns',
-                'from': old_val_str, 'to': new_val_str
-                },
-            index=['First']
-            )
-    if any(old_plan.columns != new_plan.columns):
+        result_of_compare = make_comparison_dataframe(
+            plan + ': ' + imp_plan_section, 'Missmatch data type of same columns',
+            old_val_str, new_val_str, ['First'])
+
+    elif any(old_plan.columns != new_plan.columns):
         old_plan_columns = list(old_plan.columns.values)
         new_plan_columns = list(new_plan.columns.values)
         old_val_str, new_val_str = identify_column_diff(old_plan_columns, new_plan_columns)
-        return pd.DataFrame(
-            {
-                'plan': plan, 'section': imp_plan_section,
-                'Result': 'Different Columns Names',
-                'from': old_val_str, 'to': new_val_str
-                },
-            index=['First']
-            )
-    diff_mask = (old_plan != new_plan) & ~(old_plan.isnull() & new_plan.isnull())
-    ne_stacked = diff_mask.stack()
-    changed = ne_stacked[ne_stacked]
-    changed.index.names = ['id', 'col']
-    difference_locations = np.where(diff_mask)
-    return pd.DataFrame(
-        {
-            'plan': NEWFILENAME, 'section': imp_plan_section,
-            'Result': 'Missmatch in data',
-            'from': old_plan.values[difference_locations],
-            'to': new_plan.values[difference_locations]
-            },
-        index=changed.index
-        )
-
+        result_of_compare = make_comparison_dataframe(
+            plan + ': ' + imp_plan_section, 'Different Columns Names',
+            old_val_str, old_val_str, ['First'])
+    else:
+        diff_mask = (old_plan != new_plan) & ~(old_plan.isnull() & new_plan.isnull())
+        ne_stacked = diff_mask.stack()
+        changed = ne_stacked[ne_stacked]
+        changed.index.names = ['id', 'col']
+        difference_locations = np.where(diff_mask)
+        result_of_compare = make_comparison_dataframe(
+            plan + ': ' + imp_plan_section, 'Missmatch in data',
+            old_plan.values[difference_locations],
+            new_plan.values[difference_locations],
+            changed.index)
+    return result_of_compare
 
 def check_sheet_protection(file_path, plan, sheet):
     '''Sheet protection check'''
@@ -104,25 +104,16 @@ def check_sheet_protection(file_path, plan, sheet):
     work_sheet = work_book.Worksheets(sheet)
     try:
         work_sheet.Range("A1").Value = "Cell A1"
-        return pd.DataFrame(
-            {
-                'plan': plan, 'sheet': sheet,
-                'Result': 'Sheet Not Protected'
-            },
-            index=['FIRST']
-        )
+        result_of_sheetprotection = make_protection_dataframe(
+            plan + ': ' + sheet, 'Sheet Not Protected', ['First'])
     except: # pylint: disable=W0702
-        return pd.DataFrame(
-            {
-                'plan': plan, 'sheet': sheet,
-                'Result': 'Sheet Protected'
-            },
-            index=['FIRST']
-        )
+        result_of_sheetprotection = make_protection_dataframe(
+            plan + ': ' + sheet, 'Sheet Protected', ['First'])
     finally:
         excel_file.DisplayAlerts = False
         work_book.Close(False)
         excel_file.Application.Quit()
+    return result_of_sheetprotection
 
 def prepare_data_for_test(config_sheet_reader_item, old_path, new_path):
     """
@@ -216,8 +207,8 @@ for configSheetReaderItem in CONFIGSHEETREADER:
         sort=True
         )
 
-COMPARERESULTAPPENDED = COMPARERESULTAPPENDED[['plan', 'section', 'Result', 'from', 'to']]
-SHEETPROTECTIONRESULTAPPENDED = SHEETPROTECTIONRESULTAPPENDED[['plan', 'sheet', 'Result']]
+COMPARERESULTAPPENDED = COMPARERESULTAPPENDED[['plan - section', 'Result', 'from', 'to']]
+SHEETPROTECTIONRESULTAPPENDED = SHEETPROTECTIONRESULTAPPENDED[['plan - sheet', 'Result']]
 
 print(COMPARERESULTAPPENDED)
 print(SHEETPROTECTIONRESULTAPPENDED)
