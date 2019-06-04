@@ -82,7 +82,7 @@ def compare_improvement_plans(old_plan, new_plan, plan, imp_plan_section):
         old_val_str, new_val_str = identify_column_diff(old_plan_columns, new_plan_columns)
         result_of_compare = make_comparison_dataframe(
             plan + ': ' + imp_plan_section, 'Different Columns Names',
-            old_val_str, old_val_str, ['First'])
+            old_val_str, new_val_str, ['First'])
     else:
         diff_mask = (old_plan != new_plan) & ~(old_plan.isnull() & new_plan.isnull())
         ne_stacked = diff_mask.stack()
@@ -160,6 +160,56 @@ def prepare_data_for_test(config_sheet_reader_item, old_path, new_path):
     df_new_data = df_new_data[
         df_new_data[CONFIG[config_sheet_reader_item_key]['nullCheck']].notnull()]
     return df_old_data, df_new_data
+
+def read_test_files(config_sheet_reader, old_file_path, new_file_path, new_file_name):
+    """
+    Reads improvement plans and create test results
+    """
+    compare_result_appended = pd.DataFrame()
+    sheet_protection_result_appended = pd.DataFrame()
+    for config_sheet_reader_item in config_sheet_reader:
+        old_imp_plan, new_imp_plan = prepare_data_for_test(
+            config_sheet_reader_item,
+            old_file_path,
+            new_file_path
+            )
+        compare_result = compare_improvement_plans(
+            old_imp_plan, new_imp_plan, new_file_name, config_sheet_reader_item)
+        compare_result_appended = compare_result_appended.append(
+            compare_result,
+            ignore_index=True,
+            sort=True
+            )
+        sheet_protection_result = check_sheet_protection(
+            NEWFILEPATH, new_file_name, CONFIG[config_sheet_reader_item]['SheetName']
+            )
+        sheet_protection_result_appended = sheet_protection_result_appended.append(
+            sheet_protection_result,
+            ignore_index=True,
+            sort=True
+            )
+    compare_result_appended = compare_result_appended[['plan - section', 'Result', 'from', 'to']]
+    sheet_protection_result_appended = sheet_protection_result_appended[['plan - sheet', 'Result']]
+    return compare_result_appended, sheet_protection_result_appended
+
+def write_output(compare_test_result, sheetprotect_test_result):
+    """
+    Writes test results output
+    """
+    #Data Output write Phase starts
+    output_writer = pd.ExcelWriter('TestResults.xlsx', engine='xlsxwriter')
+    compare_test_result.to_excel(
+        output_writer,
+        sheet_name='CompareResult', index=False)
+    sheetprotect_test_result.to_excel(
+        output_writer,
+        sheet_name='SheetProtectionResult', index=False)
+
+    # Close the Pandas Excel WRITER and output the Excel file.
+    output_writer.save()
+    #Data Output write Phase ends
+    return "Test result generated.  Please check."
+
 #Function declaration Phase Ends
 
 #Preprocessing Preparation Phase Starts
@@ -178,47 +228,9 @@ OLDFILENAME = NEWFILENAME[:-4] + "xlsm"  #Once migration is done this line will 
 
 OLDFILEPATH = IMPPLANOLDFILEPATH + OLDFILENAME
 NEWFILEPATH = IMPPLANNEWFILEPATH + NEWFILENAME
-COMPARERESULTAPPENDED = pd.DataFrame()
-SHEETPROTECTIONRESULTAPPENDED = pd.DataFrame()
-#Preprocessing Preparation Phase Ends
 
-#Data Reading & Testing Phase Starts
-for configSheetReaderItem in CONFIGSHEETREADER:
-
-    old_imp_plan, new_imp_plan = prepare_data_for_test(
-        configSheetReaderItem,
-        OLDFILEPATH,
-        NEWFILEPATH
-        )
-    CompareResult = compare_improvement_plans(
-        old_imp_plan, new_imp_plan, NEWFILENAME, configSheetReaderItem)
-    COMPARERESULTAPPENDED = COMPARERESULTAPPENDED.append(
-        CompareResult,
-        ignore_index=True,
-        sort=True
-        )
-
-    SheetProtectionResult = check_sheet_protection(
-        NEWFILEPATH, NEWFILENAME, CONFIG[configSheetReaderItem]['SheetName']
-        )
-    SHEETPROTECTIONRESULTAPPENDED = SHEETPROTECTIONRESULTAPPENDED.append(
-        SheetProtectionResult,
-        ignore_index=True,
-        sort=True
-        )
-
-COMPARERESULTAPPENDED = COMPARERESULTAPPENDED[['plan - section', 'Result', 'from', 'to']]
-SHEETPROTECTIONRESULTAPPENDED = SHEETPROTECTIONRESULTAPPENDED[['plan - sheet', 'Result']]
-
-print(COMPARERESULTAPPENDED)
-print(SHEETPROTECTIONRESULTAPPENDED)
-#Data Reading & Testing Phase Ends
-
-#Data Output write Phase starts
-WRITER = pd.ExcelWriter('TestResults.xlsx', engine='xlsxwriter')
-COMPARERESULTAPPENDED.to_excel(WRITER, sheet_name='CompareResult', index=False)
-SHEETPROTECTIONRESULTAPPENDED.to_excel(WRITER, sheet_name='SheetProtectionResult', index=False)
-
-# Close the Pandas Excel WRITER and output the Excel file.
-WRITER.save()
-#Data Output write Phase ends
+COMPARE_RESULT, SHEET_PROTECT_RESULT = read_test_files(
+    CONFIGSHEETREADER, OLDFILEPATH, NEWFILEPATH, NEWFILENAME)
+OUTPUT_WRITE_EXCEL = write_output(
+    COMPARE_RESULT, SHEET_PROTECT_RESULT)
+print(OUTPUT_WRITE_EXCEL)
