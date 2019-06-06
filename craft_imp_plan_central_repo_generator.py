@@ -46,16 +46,16 @@ def filter_out_column_isin(df_name, column_name, filter_value):
         )]
     return filtered_df
 
-def create_source_dict(confi_sheet_reader, all_files, imp_plan_source_file_path):
+def create_source_dict(config_sheet_reader, all_files, imp_plan_source_file_path):
     """
     Reads & consolidates all the improvement plans
     into a dictionary
     """
-    func_confi_sheet_reader = confi_sheet_reader
+    func_config_sheet_reader = config_sheet_reader
     func_all_files = all_files
     func_imp_plan_source_file_path = imp_plan_source_file_path
     dict_src_data = {}
-    for config_sheet_reader_item in func_confi_sheet_reader:
+    for config_sheet_reader_item in func_config_sheet_reader:
         df_appended = []
         for imp_plan_file_reader_item in func_all_files:
             file_path = func_imp_plan_source_file_path + imp_plan_file_reader_item
@@ -94,21 +94,82 @@ def create_source_dict(confi_sheet_reader, all_files, imp_plan_source_file_path)
         del df_appended
     return dict_src_data
 
+def create_master_dict(config_masterdata_reader, masterdata_source_file_path):
+    """
+    Reads & consolidates all the improvement plans
+    into a dictionary
+    """
+    func_config_masterdata_reader = config_masterdata_reader
+    func_masterdata_source_file_path = masterdata_source_file_path
+    dict_master_data = {}
+    for config_masterdata_reader_item in func_config_masterdata_reader:
+        data = pd.read_excel(
+            func_masterdata_source_file_path,
+            sheet_name=CONFIG[config_masterdata_reader_item]['SheetName'],
+            skiprows=int(CONFIG[config_masterdata_reader_item]['skiprows']),
+            nrows=int(CONFIG[config_masterdata_reader_item]['nrows']),
+            usecols=CONFIG[config_masterdata_reader_item]['parse_cols']
+            )
+        column_names = config_string_converter(
+            CONFIG[config_masterdata_reader_item]['columns']
+            )
+        masterdata_df = pd.DataFrame(
+            data, columns=column_names
+            )
+        masterdata_df = masterdata_df[
+            masterdata_df[
+                CONFIG[config_masterdata_reader_item]['nullCheck']
+                ].notnull()]
+        dict_master_data[
+            MASTERDFNAMES[int(CONFIG[config_masterdata_reader_item]['DFNum'])]
+            ] = masterdata_df
+        del masterdata_df
+    return dict_master_data
+
+def prepare_cover_tab(cover_dict, bgbulist_dict):
+    """
+    Prepares the data for the cover tab
+    """
+    cover_dict = cover_dict.pivot(
+        index='Source.Name', columns='Org Structure', values='Name')
+    cover_dict['Business Group'] = (
+        (cover_dict['Business Group'].str.upper()).str.rstrip()).str.lstrip()
+    cover_dict['Business Unit'] = (
+        (cover_dict['Business Unit'].str.upper()).str.rstrip()).str.lstrip()
+    cover_dict['Cluster'] = (
+        (cover_dict['Cluster'].str.upper()).str.rstrip()).str.lstrip()
+    bgbulist_dict['Business Group'] = (
+        (bgbulist_dict['Business Group'].str.upper()).str.rstrip()
+        ).str.lstrip()
+    bgbulist_dict['Business Unit'] = (
+        (bgbulist_dict['Business Unit'].str.upper()).str.rstrip()
+        ).str.lstrip()
+    bgbulist_dict['Cluster'] = (
+        (bgbulist_dict['Cluster'].str.upper()).str.rstrip()
+        ).str.lstrip()
+    cover_dict['Source.Name'] = cover_dict.index
+    cover_dict = pd.merge(cover_dict, bgbulist_dict, on='ID', how='inner')
+    cover_dict['Business Unit_x'] = cover_dict['Business Unit_y']
+    cover_dict['Business Group_x'] = cover_dict['Business Group_y']
+    cover_dict['Cluster_x'] = cover_dict['Cluster_y']
+    cover_dict.rename(columns={
+        'Business Unit_x':'Business Unit',
+        'Business Group_x':'Business Group',
+        'Cluster_x':'Cluster'}, inplace=True)
+    cover_dict['BGBUID'] = cover_dict['Business Group'] + " - " + cover_dict['Business Unit']
+    cover_dict = cover_dict[[
+        'ID', 'Source.Name', 'Template Version',
+        'BGBUID', 'Cluster', 'Business Group', 'Business Unit'
+        ]]
+    return cover_dict
+
 def frame_specific_manipulation(config_data_checks, central_data_output_sheet_names):
     """
     Data Manipulation
     """
     write_output_dict = {}
-    DFS['Cover'] = DFS['Cover'].pivot(
-        index='Source.Name', columns='Org Structure', values='Name'
-        )
-    DFS['Cover']['Business Group'] = (
-        (DFS['Cover']['Business Group'].str.upper()).str.rstrip()
-        ).str.lstrip()
-    DFS['Cover']['Business Unit'] = (
-        (DFS['Cover']['Business Unit'].str.upper()).str.rstrip()
-        ).str.lstrip()
-    DFS['Cover']['BGBUID'] = DFS['Cover']['Business Group'] + " - " + DFS['Cover']['Business Unit']
+    DFS['Cover'] = prepare_cover_tab(DFS['Cover'], DFS['BGBUList'])
+
     DFS['ProjectList2019'] = filter_out_column_containsstr(
         'ProjectList2019', 'Project Name/Team Name', '<Project'
         )
@@ -139,7 +200,6 @@ def frame_specific_manipulation(config_data_checks, central_data_output_sheet_na
     del DFS['TestAutomation']
     #Deletes the Test Automation DataFrame
     del DFS['ContinuousIntegration']
-    print('Filtering based on Column values for data FRAMES to be printed starts')
     write_output_dict = DFS
     #configDataChecksItemCounter = 0
     for config_data_checks_item in config_data_checks:
@@ -270,8 +330,11 @@ def write_output(dict_toprint, output_sheet_names):
 CONFIG = configparser.ConfigParser()
 CONFIG.read('ImpPlanReaderConfig.ini')
 IMPPLANSOURCEFILEPATH = CONFIG['ConnectionString SourceFilePath']['sourcefilepath']
+MASTERDATASOURCEFILEPATH = CONFIG['ConnectionString MasterDataFilePath']['sourcefilepath']
 DFNAMES = CONFIG['DF Names']['DFNames']
 DFNAMES = DFNAMES.split(",")
+MASTERDFNAMES = CONFIG['MasterDF Names']['DFNames']
+MASTERDFNAMES = MASTERDFNAMES.split(",")
 CENTRALDATAOUTPUTSHEETNAMES = config_string_converter(
     CONFIG['Write Output CentralData']['SheetName']
     )
@@ -280,9 +343,13 @@ DFS_TOPRINT = {}
 DFS_TOEXCEPTION = DFNAMES
 ALL_XLSM_FILES = list(filter(lambda x: x.endswith('.xlsm'), os.listdir(IMPPLANSOURCEFILEPATH)))
 CONFIGSHEETREADER = list(filter(lambda x: x.startswith('Readsheet'), CONFIG.sections()))
+CONFIGMASTERDATAREADER = list(filter(lambda x: x.startswith('Master Readsheet'), CONFIG.sections()))
 CONFIGDATACHECKS = list(filter(lambda x: x.startswith('DataCheck'), CONFIG.sections()))
 
-DFS = create_source_dict(CONFIGSHEETREADER, ALL_XLSM_FILES, IMPPLANSOURCEFILEPATH)
+
+IMPPLANDFS = create_source_dict(CONFIGSHEETREADER, ALL_XLSM_FILES, IMPPLANSOURCEFILEPATH)
+MASTERDATADFS = create_master_dict(CONFIGMASTERDATAREADER, MASTERDATASOURCEFILEPATH)
+DFS = {**IMPPLANDFS, **MASTERDATADFS}
 DFS_TOPRINT = frame_specific_manipulation(CONFIGDATACHECKS, CENTRALDATAOUTPUTSHEETNAMES)
 OUTPUT_WRITE_EXCEL = write_output(DFS_TOPRINT, CENTRALDATAOUTPUTSHEETNAMES)
 print(OUTPUT_WRITE_EXCEL)

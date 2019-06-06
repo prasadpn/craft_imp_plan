@@ -3,9 +3,27 @@ Config file for craft_imp_plan_central_repo_generator.py
 '''
 import configparser
 CONFIG = configparser.ConfigParser()
+CONFIG['Master Readsheet MasterData'] = {'skiprows': 0,
+                                         'columns': ['ID,\
+Cluster,Cluster Description,Business Group,\
+BG Description,Business Unit,BU Description,\
+BU Head of R&D,SW CoE BG Representative,BG I2M Lead,\
+BU Tech Leads,PMO Contact,enrolledInAnnualCycle,WhenBaselined,2018_BU_ID'],
+                                         'nrows': 500,
+                                         'SheetName': 'MasterData',
+                                         'parse_cols': 'A:O',
+                                         'nullCheck': 'Business Unit',
+                                         'DFNum': 0}
+CONFIG['Master Readsheet Score20182017'] = {'skiprows': 0,
+                                            'columns': ['BG-BU,BG,BU,Attribute,Value,WhichScore'],
+                                            'nrows': 2000,
+                                            'SheetName': 'Score20182017',
+                                            'parse_cols': 'A:F',
+                                            'nullCheck': 'BG-BU',
+                                            'DFNum': 1}
 CONFIG['Readsheet Cover'] = {'skiprows': 4,
                              'columns': ['Org Structure,Name'],
-                             'nrows': 3,
+                             'nrows': 5,
                              'SheetName': 'Cover',
                              'parse_cols': 'B:C',
                              'nullCheck': 'Org Structure',
@@ -184,6 +202,11 @@ CONFIG['ConnectionString SourceFilePath'] = {
     'sourcefilepath':
     'C:\\Users\\320014135\\OneDrive - Philips\\SW CoE\\2019\\dotCraft\\SP To OneDrive\\'
         }
+CONFIG['ConnectionString MasterDataFilePath'] = {
+    'sourcefilepath':
+    'C:\\Users\\320014135\\OneDrive - Philips\\SW CoE\\2019\\dotCraft\\\
+SP To OneDrive\\BGBUListMasterData.xlsx'
+        }
 CONFIG['ConnectionString NewFilePath'] = {
     'sourcefilepath':
         'C:\\Users\\320014135\\OneDrive - Philips\\SW CoE\\2019\\dotCraft\\\
@@ -201,12 +224,18 @@ Rationale,DefectDensity,CodeSize,SafeAgile,ToolInfo,\
 SecurityActions,DevOpsActions,TechDebtActions,ReqBacklogActions,ApprovalTable'
                 )
         }
+CONFIG['MasterDF Names'] = {
+    'DFNames': (
+        'BGBUList,Score20182017'
+                )
+        }
 CONFIG['Write Output CentralData'] = {
     'SheetName': [
         'Cover,TargetScore2019,TargetScore2020,\
 ProjectList2019,ProjectList2020,Actions2019,\
 Rationale,DefectDensity,CodeSize,SafeAgile,ToolInfo,\
-SecurityActions,DevOpsActions,TechDebtActions,ReqBacklogActions,ApprovalTable'
+SecurityActions,DevOpsActions,TechDebtActions,ReqBacklogActions,ApprovalTable,\
+BGBUList,Score20182017'
         ]
         }
 with open('ImpPlanReaderConfig.ini', 'w') as configfile:
