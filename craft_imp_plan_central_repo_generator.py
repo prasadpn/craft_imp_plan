@@ -218,7 +218,8 @@ def frame_specific_manipulation(config_data_checks, central_data_output_sheet_na
         output_sheet_counter = output_sheet_counter + 1
         write_output_dict[central_data_output_sheet_names[output_sheet_counter]] = pd.merge(
             write_output_dict[central_data_output_sheet_names[output_sheet_counter]],
-            write_output_dict['Cover'],
+            write_output_dict['Cover'][['Source.Name', 'Business Group',
+                                        'Business Unit', 'Cluster', 'BGBUID']],
             on='Source.Name', how='inner'
             )
     #To get from config file once all the columns are decided
