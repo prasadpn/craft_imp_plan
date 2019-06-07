@@ -8,10 +8,12 @@ CONFIG['Master Readsheet MasterData'] = {'skiprows': 0,
 Cluster,Cluster Description,Business Group,\
 BG Description,Business Unit,BU Description,\
 BU Head of R&D,SW CoE BG Representative,BG I2M Lead,\
-BU Tech Leads,PMO Contact,enrolledInAnnualCycle,WhenBaselined,2018_BU_ID'],
+BU Tech Leads,PMO Contact,enrolledInAnnualCycle,\
+annualPhaseGated,remarksPhaseGated,EngagementLevel,\
+WhenBaselined,2018_BU_ID,2019_BU_ID'],
                                          'nrows': 500,
                                          'SheetName': 'MasterData',
-                                         'parse_cols': 'A:O',
+                                         'parse_cols': 'A:S',
                                          'nullCheck': 'Business Unit',
                                          'DFNum': 0}
 CONFIG['Master Readsheet Score20182017'] = {'skiprows': 0,
