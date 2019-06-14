@@ -219,12 +219,12 @@ CONFIG.read('ImpPlanReaderConfig.ini')
 IMPPLANOLDFILEPATH = CONFIG['ConnectionString SourceFilePath']['sourcefilepath']
 IMPPLANNEWFILEPATH = CONFIG['ConnectionString NewFilePath']['sourcefilepath']
 
-ALLOUTPUTFILES = list(filter(lambda x: x.endswith('.xlsx'), os.listdir(IMPPLANNEWFILEPATH)))
+ALLOUTPUTFILES = list(filter(lambda x: x.endswith('.xlsm'), os.listdir(IMPPLANNEWFILEPATH)))
 CONFIGSHEETREADER = list(filter(lambda x: x.startswith('Readsheet'), CONFIG.sections()))
 
 #NEWFILENAME = ALLOUTPUTFILES[randint(0,47)]
-NEWFILENAME = ALLOUTPUTFILES[28]
-OLDFILENAME = NEWFILENAME[:-4] + "xlsm"  #Once migration is done this line will change
+NEWFILENAME = ALLOUTPUTFILES[38]
+OLDFILENAME = NEWFILENAME  #Once migration is done this line will change
 
 OLDFILEPATH = IMPPLANOLDFILEPATH + OLDFILENAME
 NEWFILEPATH = IMPPLANNEWFILEPATH + NEWFILENAME
