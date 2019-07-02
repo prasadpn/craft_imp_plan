@@ -223,7 +223,7 @@ ALLOUTPUTFILES = list(filter(lambda x: x.endswith('.xlsm'), os.listdir(IMPPLANNE
 CONFIGSHEETREADER = list(filter(lambda x: x.startswith('Readsheet'), CONFIG.sections()))
 
 #NEWFILENAME = ALLOUTPUTFILES[randint(0,47)]
-NEWFILENAME = ALLOUTPUTFILES[38]
+NEWFILENAME = ALLOUTPUTFILES[9]
 OLDFILENAME = NEWFILENAME  #Once migration is done this line will change
 
 OLDFILEPATH = IMPPLANOLDFILEPATH + OLDFILENAME
