@@ -8,7 +8,7 @@ import os
 import configparser
 import pandas as pd
 import numpy as np
-from craft_imp_plan_migration_related_changes import migration_related_changes
+#from craft_imp_plan_migration_related_changes import migration_related_changes
 #Import statements ends
 
 #Function declaration Phase Starts
