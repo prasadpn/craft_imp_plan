@@ -44,23 +44,23 @@ CONFIG['Readsheet Score Card 2020'] = {'skiprows': 6,
                                        'parse_cols': 'I:K',
                                        'nullCheck': 'Attribute.1',
                                        'DFNum': 2}
-CONFIG['Readsheet ProjectList2019'] = {'skiprows': 27,
+CONFIG['Readsheet ProjectList2019'] = {'skiprows': 31,
                                        'nrows': 100,
                                        'columns': [
                                            'Project Name/Team Name,\
-FTE/People,Profile'],
+FTE/People,Profile,SerialNum'],
                                        'SheetName': 'Score Card',
-                                       'parse_cols': 'B:D',
+                                       'parse_cols': 'A:D',
                                        'nullCheck': 'Project Name/Team Name',
                                        'RankCheck': 'Profile',
                                        'DFNum': 3}
-CONFIG['Readsheet ProjectList2020'] = {'skiprows': 27,
+CONFIG['Readsheet ProjectList2020'] = {'skiprows': 31,
                                        'nrows': 100,
                                        'columns': [
                                            'Project Name/Team Name.1,\
-FTE/People.1,Profile.1'],
+FTE/People.1,Profile.1,SerialNum.1'],
                                        'SheetName': 'Score Card',
-                                       'parse_cols': 'I:K',
+                                       'parse_cols': 'H:K',
                                        'nullCheck': 'Project Name/Team Name.1',
                                        'RankCheck': 'Profile.1',
                                        'DFNum': 4}

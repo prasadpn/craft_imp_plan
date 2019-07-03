@@ -8,7 +8,7 @@ import os
 import configparser
 import pandas as pd
 import numpy as np
-from craft_imp_plan_migration_related_changes import migration_related_changes
+#from craft_imp_plan_migration_related_changes import migration_related_changes
 #Import statements ends
 
 #Function declaration Phase Starts
@@ -75,17 +75,17 @@ def create_source_dict(config_sheet_reader, all_files, imp_plan_source_file_path
                 imp_plan_df[
                     CONFIG[config_sheet_reader_item]['nullCheck']
                     ].notnull()]
-            #Section to be removed once the migration of the template is done
-            if config_sheet_reader_item in (
-                    'Readsheet ProjectList2019',
-                    'Readsheet ProjectList2020'
-                ):
-                imp_plan_df = migration_related_changes(
-                    imp_plan_df,
-                    CONFIG[config_sheet_reader_item]['nullCheck'],
-                    CONFIG[config_sheet_reader_item]['RankCheck']
-                    )
-            #Section to be removed once the migration of the template is done
+#            #Section to be removed once the migration of the template is done
+#            if config_sheet_reader_item in (
+#                    'Readsheet ProjectList2019',
+#                    'Readsheet ProjectList2020'
+#                ):
+#                imp_plan_df = migration_related_changes(
+#                    imp_plan_df,
+#                    CONFIG[config_sheet_reader_item]['nullCheck'],
+#                    CONFIG[config_sheet_reader_item]['RankCheck']
+#                    )
+#            #Section to be removed once the migration of the template is done
             imp_plan_df['Source.Name'] = imp_plan_file_reader_item
             df_appended.append(imp_plan_df)
         df_appended = pd.concat(df_appended)
@@ -219,9 +219,13 @@ def frame_specific_manipulation(config_data_checks, central_data_output_sheet_na
         write_output_dict[central_data_output_sheet_names[output_sheet_counter]] = pd.merge(
             write_output_dict[central_data_output_sheet_names[output_sheet_counter]],
             write_output_dict['Cover'][['Source.Name', 'Business Group',
-                                        'Business Unit', 'Cluster', 'BGBUID']],
+                                        'Business Unit', 'Cluster', 'BGBUID', 'ID']],
             on='Source.Name', how='inner'
             )
+        write_output_dict[central_data_output_sheet_names[output_sheet_counter]].insert(
+            (len(
+                write_output_dict[central_data_output_sheet_names[output_sheet_counter]].keys())-1
+            ), "Joinkey", "")
     #To get from config file once all the columns are decided
     write_output_dict['TargetScore2019']['Joinkey'] = (
         write_output_dict['TargetScore2019']['BGBUID'] +
@@ -234,12 +238,12 @@ def frame_specific_manipulation(config_data_checks, central_data_output_sheet_na
     write_output_dict['ProjectList2019']['Joinkey'] = (
         write_output_dict['ProjectList2019']['BGBUID'] +
         (
-            (write_output_dict['ProjectList2019']['Rank']).astype(int)).astype(str)
+            (write_output_dict['ProjectList2019']['SerialNum']).astype(int)).astype(str)
         )
     write_output_dict['ProjectList2020']['Joinkey'] = (
         write_output_dict['ProjectList2020']['BGBUID'] +
         (
-            (write_output_dict['ProjectList2020']['Rank']).astype(int)).astype(str)
+            (write_output_dict['ProjectList2020']['SerialNum.1']).astype(int)).astype(str)
         )
     write_output_dict['Actions2019']['Joinkey'] = (
         write_output_dict['Actions2019']['BGBUID'] +
@@ -293,7 +297,12 @@ def frame_specific_manipulation(config_data_checks, central_data_output_sheet_na
         )
     write_output_dict['ProjectList2020'].rename(
         columns={'Project Name/Team Name.1':'Project Name/Team Name',
-                 'FTE/People.1':'FTE/People', 'Profile.1':'Profile'},
+                 'FTE/People.1':'FTE/People', 'Profile.1':'Profile',
+                 'SerialNum.1':'Rank'},
+        inplace=True
+        )
+    write_output_dict['ProjectList2019'].rename(
+        columns={'SerialNum':'Rank'},
         inplace=True
         )
     write_output_dict['TechDebtActions'].rename(
